@@ -1,0 +1,407 @@
+---
+title: Forecasting is not prophecy
+author: Dealing with high-dimensional probabilistic forecasts in&nbsp;practice
+date: Rob J Hyndman
+classoption: compress
+titlefontsize: 28pt
+toc: false
+output:
+  binb::monash:
+    incremental: no
+    fig_height: 4.8
+    keep_tex: no
+    includes:
+      in_header: preamble.tex
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning=FALSE, cache=TRUE, dev.args=list(bg=grey(0.9), pointsize=11))
+options(width=67)
+set.seed(20190714)
+library(fpp3)
+aus_holidays <- tourism %>%
+  mutate(
+    State = recode(State,
+                   "Australian Capital Territory" = "ACT",
+                   "New South Wales"="NSW",
+                   "Northern Territory" = "NT",
+                   "Queensland" = "QLD",
+                   "South Australia" = "SA",
+                   "Tasmania" = "TAS",
+                   "Victoria"="VIC",
+                   "Western Australia" = "WA"
+    )
+  ) %>%
+  filter(Purpose == "Holiday") %>% select(-Purpose)
+austa <- aus_holidays %>%
+  summarize(Trips = sum(Trips))
+```
+
+
+## What is it?
+
+\placefig{5.1}{1.5}{width=7.7cm}{sheepliverbm}
+
+\only<2>{\begin{textblock}{4.5}(0.5,1.7) \raggedright\fontsize{17}{19}\sf
+\textbf{Clay model of sheep's liver}\\[0.4cm]
+Used by Bab\-ylon\-ian forecasters approximately 600~B.C.\\[.9cm]
+Now in \rlap{British Museum.}
+\end{textblock}}
+
+## Modern prophecy
+
+\placefig{0}{1.3}{width=12.9cm, height=20cm}{bad_forecasts}
+
+## Probabilistic forecasting
+
+```{r austa0, fig.width=7.88, fig.height=6}
+ggplot(austa, aes(x = Quarter)) +
+  geom_line(aes(y = Trips, colour = "Data"), colour='black') +
+  geom_point(
+    data=tsibble(Quarter=yearquarter("2021 Jan"),Trips=15190, index=Quarter),
+    aes(y=Trips,x=Quarter),
+    alpha=0
+  ) +
+  ylab("Thousands of trips") + xlab("Quarter") +
+  ggtitle("Total domestic holiday trips: Australia") +
+  guides(colour=FALSE)
+```
+
+## Probabilistic forecasting
+
+```{r austa1}
+fit <- austa %>% model(ETS(Trips))
+```
+
+```{r austa1a, fig.width=9, fig.height=6, dependson="austa1"}
+sim <- fit %>% generate(h = 10, times = 10) %>%
+  mutate(
+    replicate = factor(.rep, levels = 1:10, labels = paste("Future", 1:10))
+  )
+ggplot(austa, aes(x = Quarter)) +
+  geom_line(aes(y = Trips, colour = "Data")) +
+  geom_line(aes(y = .sim, colour = replicate), data = sim) +
+  geom_point(
+    data=tsibble(Quarter=yearquarter("2021 Jan"),Trips=15190, index=Quarter),
+    aes(y=Trips,x=Quarter),
+    alpha=0
+  ) +
+  ylab("Thousands of trips") + xlab("Quarter") +
+  ggtitle("Total domestic holiday trips: Australia") +
+  scale_colour_manual(values = c("#000000", rainbow(10)),
+                      breaks = c("Data", paste("Future", 1:10)),
+                      name = " ")
+```
+
+## Probabilistic forecasting
+
+```{r austa2, fig.width=8.63, fig.height=6, dependson="austa1"}
+fit %>%
+  forecast(h = 10) %>%
+  autoplot(austa) +
+  geom_point(
+    data=tsibble(Quarter=yearquarter("2021 Jan"),Trips=15190, index=Quarter),
+    aes(y=Trips,x=Quarter),
+    alpha=0
+  ) +
+  ylab("Thousands of trips") + xlab("Quarter") +
+  ggtitle("Total domestic holiday trips: Australia")
+```
+
+## Multivariate probabilistic forecasting
+
+```{r austa3, fig.height=8, fig.width=6, out.height="92%"}
+z <- aus_holidays %>%
+  group_by(State) %>%
+  summarize(Trips = sum(Trips)) %>%
+  aggregate_key(State, Trips = sum(Trips))
+z %>%
+  model(ets = ETS(Trips)) %>%
+  forecast(h = "3 years") %>%
+  autoplot(z) +
+  ylab("Thousands of trips")
+```
+
+\only<2>{\begin{textblock}{4.5}(7.5,3)\fontsize{11}{14}\sf
+\begin{block}{}
+These show the marginal distributions of the 9-dimensional distribution. In practice, we also want forecast for smaller geographical areas as well.
+\end{block}
+\end{textblock}}
+
+## \fontsize{17}{16}\sf\bfseries Who needs multivariate probabilistic forecasts?
+
+ * Tourism authorities forecasting visitor numbers to plan facilities.
+ * Manufacturing companies forecasting product demand to plan their supply chains.
+ * Call centres forecasting call volume to inform staff scheduling.
+ * Technology companies forecasting web traffic to maintain service levels.
+ * Energy companies forecasting electricity demand to prevent blackouts.
+
+## \fontsize{16}{16}\sf\bfseries Challenges in multivariate probabilistic forecasting
+\fontsize{12}{14}\sf
+
+ 1. How to produce high-dim probabilistic forecasts?
+ 2. How to use and interpret high-dim probabilistic forecasts?
+ 3. How to measure accuracy of high-dim probabilistic forecasts?
+
+\pause
+
+###
+ * Users care about marginal distributions, but we need multivariate distribution to compute them.
+ * Forecast reconciliation provides a way to efficiently compute marginal distributions.
+ * Probability scoring allows us to measure distributional forecast accuracy.
+
+## Probability scoring
+
+\begin{block}{}\vspace*{-.2cm}
+\begin{align*}
+  \text{CRPS}(F,y) &= \int_{-\infty}^\infty (F(x) -1\{y \le x\})^2 dx \\
+  &= \text{E}_F|Y-y| - {\textstyle\frac12} \text{E}_F|Y-Y'|
+\end{align*}
+\end{block}
+
+ * $y$ is observation, $F$ is estimated forecast distribution
+ * $Y$ and $Y'$ are iid with cdf $F$
+ * CRPS in same units as observations
+ * Expected CRPS minimized when observation $y$ from same distribution as $F$.
+ * Maximizes sharpness subject to calibration.
+
+
+## Tidyverts R packages
+
+\begin{textblock}{3.8}(8,0)\begin{alertblock}{}\Large\textbf{tidyverts.org}\end{alertblock}\end{textblock}
+
+\placefig{1}{1.4}{width=4cm}{tsibble.png}
+\placefig{5}{1.4}{width=4cm}{tsibbledata.png}
+\placefig{3}{4.85}{width=4cm}{feasts.png}
+\placefig{7}{4.85}{width=4cm}{fable.png}
+
+## `tsibble` objects
+
+\fontsize{9.5}{11}\sf
+
+```{r tsibble, echo = TRUE}
+library(tsibble)
+library(tsibbledata)
+aus_holidays
+```
+
+\only<2->{\begin{textblock}{.97}(2.05,4.17)
+\begin{alertblock}{}\fontsize{9}{9}\sf Index\phantom{dg}\end{alertblock}
+\end{textblock}}
+\only<3->{\begin{textblock}{2.2}(3.42,4.17)
+\begin{alertblock}{}\fontsize{9}{9}\sf Keys\phantom{dg}\end{alertblock}
+\end{textblock}}
+\only<4-5>{\begin{textblock}{1.5}(5.99,4.17)
+\begin{alertblock}{}\fontsize{9}{9}\sf Measure\phantom{dg}\end{alertblock}
+\end{textblock}}
+
+\only<5>{\begin{textblock}{3}(9,5)
+\begin{block}{}\fontsize{10}{10}\sf Domestic overnight holiday trips in thousands by state/region.\phantom{dg}\end{block}
+\end{textblock}}
+
+## High-dimensional time series data
+\fontsize{9.5}{11}\sf
+
+```{r tourism, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) # 2 year test set
+```
+
+## Compute all aggregates
+\fontsize{9.5}{11}\sf
+
+```{r aggregates, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips))
+```
+
+## Fit univariate models
+\fontsize{9.5}{11}\sf
+
+```{r models, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips))
+```
+
+## Reconcile results
+\fontsize{9.5}{11}\sf
+
+```{r coherent, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
+  reconcile(ets = min_trace(ets))
+```
+
+## Produce probabilisic forecasts
+\fontsize{9.5}{11}\sf
+
+```{r forecasts, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
+  reconcile(ets = min_trace(ets)) %>%
+  forecast(h = "2 years")
+```
+
+```{r crps, results='hide'}
+get_sd <- function(x) {
+  purrr::map_dbl(x, function(x){x$sd})
+}
+Gaussian_crps <- function(y, mean, sd) {
+  z <- (y-mean)/sd
+  sd*(z*(2*pnorm(z)-1)+2*dnorm(z)-1/sqrt(pi))
+}
+fc <- aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
+  reconcile(ets = min_trace(ets)) %>%
+  forecast(h = "2 years")
+y <- filter(aus_holidays, Quarter >= yearquarter("2016 Q1")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips))
+ac <- fc %>%
+  mutate(sd = get_sd(.distribution)) %>%
+  as_tibble() %>%
+  rename(Mean = Trips) %>%
+  left_join(y) %>%
+  mutate(
+    z = (Trips - Mean)/sd,
+    CRPS = Gaussian_crps(Trips, Mean, sd)
+  ) %>%
+  group_by(State, Region, .model) %>%
+  summarize(CRPS = mean(CRPS)) %>%
+  select(.model, Region, State, everything())
+ac1 <- accuracy(fc, y) %>%
+  left_join(ac) %>%
+  select(.model, Region, State, CRPS) #%>%
+  #filter(!is_aggregated(State) & !is_aggregated(Region))
+ac2 <- ac1 %>%
+  spread(key=.model, value=CRPS)
+ac3 <- ac2 %>%
+  mutate(RelCRPS = ets/mean)
+ac4 <- ac3 %>%
+  arrange(RelCRPS)
+```
+
+## Compare against test set
+\fontsize{9.5}{11}\sf
+
+```{r accuracy, eval=FALSE, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
+  reconcile(coherent = min_trace(ets)) %>%
+  forecast(h = "2 years") %>%
+  accuracy(aus_holidays)
+```
+
+```{r accuracy2, eval=TRUE, echo=FALSE, dependson='crps'}
+ac1
+```
+
+## Probability scoring
+\fontsize{9.5}{11}\sf
+
+```{r crps2, eval=FALSE, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
+  reconcile(coherent = min_trace(ets)) %>%
+  forecast(h = "2 years") %>%
+  accuracy(aus_holidays) %>%
+  spread(key=.model, value=CRPS)
+```
+
+```{r crps2a, eval=TRUE, echo=FALSE, dependson='crps'}
+ac2
+```
+
+## Probability scoring
+\fontsize{9.5}{11}\sf
+
+```{r crps3, eval=FALSE, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
+  reconcile(coherent = min_trace(ets)) %>%
+  forecast(h = "2 years") %>%
+  accuracy(aus_holidays) %>%
+  spread(key=.model, value=CRPS) %>%
+  mutate(RelCRPS = coherent/mean)
+```
+
+```{r crps3a, eval=TRUE, echo=FALSE, dependson='crps'}
+ac3
+```
+
+## Probability scoring
+\fontsize{9.5}{11}\sf
+
+```{r crps4, eval=FALSE, echo=TRUE}
+aus_holidays %>%
+  filter(Quarter <= yearquarter("2015 Q4")) %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
+  reconcile(coherent = min_trace(ets)) %>%
+  forecast(h = "2 years") %>%
+  accuracy(aus_holidays) %>%
+  spread(key=.model, value=CRPS) %>%
+  mutate(RelCRPS = coherent/mean) %>%
+  arrange(RelCRPS)
+```
+
+```{r crps4a, eval=TRUE, echo=FALSE, dependson='crps'}
+ac4
+crps <- ac4
+```
+
+## Best forecast
+
+```{r best, eval=FALSE}
+best <- crps %>%
+  filter(RelCRPS==min(RelCRPS)) %>%
+  select(Region, State)
+data <- aus_holidays %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  right_join(best)
+fcast <- fc %>%
+  filter(.model=='ets') %>%
+  right_join(best) %>%
+  as_fable(resp=Trips, dist=.distribution)
+```
+
+
+## \fontsize{16}{16}\sf\bfseries Challenges in multivariate probabilistic forecasting
+\fontsize{12}{14}\sf
+
+ 1. The fable package produces high-dim probabilistic forecasts?
+ 2. We can focus on marginal distributions for interpretation, while needing the full distribution for calculation.
+ 3. Forecast reconciliation provides a way to efficiently compute marginal distributions.
+ 4. Probability scoring allows us to measure distributional forecast accuracy.
+
+## Acknowledgements
+
+
+\begin{block}{}
+\fontsize{11}{11}\sf
+\centering\begin{tabular}{l@{\hspace*{1cm}}l}
+\includegraphics[height=4cm, width=10cm]{mitch2} &
+\includegraphics[height=4cm, width=10cm]{earowang} \\
+Mitchell O'Hara-Wild &
+Earo Wang \\
+\end{tabular}
+\end{block}\vspace*{0.5cm}
+
+\begin{alertblock}{}
+\centerline{\textbf{tidyverts.org}}
+\centerline{\textbf{robjhyndman.com}}
+\end{alertblock}
