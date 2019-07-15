@@ -124,7 +124,7 @@ z %>%
 
 \only<2>{\begin{textblock}{4.5}(7.5,3)\fontsize{11}{14}\sf
 \begin{block}{}
-These show the marginal distributions of the 9-dimensional distribution. In practice, we also want forecast for smaller geographical areas as well.
+These show the marginal distributions of the 9-dimensional distribution. In practice, we also want forecast for smaller geographic areas as well.
 \end{block}
 \end{textblock}}
 
@@ -237,7 +237,7 @@ aus_holidays %>%
   reconcile(ets = min_trace(ets))
 ```
 
-## Produce probabilisic forecasts
+## Produce probabilistic forecasts
 \fontsize{9.5}{11}\sf
 
 ```{r forecasts, echo=TRUE}
