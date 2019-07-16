@@ -364,19 +364,44 @@ ac4
 crps <- ac4
 ```
 
-## Best forecast
+## Best forecast (RelCRPS)
 
-```{r best, eval=FALSE}
+```{r best, dependson='crps'}
 best <- crps %>%
   filter(RelCRPS==min(RelCRPS)) %>%
   select(Region, State)
 data <- aus_holidays %>%
   aggregate_key(State/Region, Trips=sum(Trips)) %>%
   right_join(best)
+region <- as.character(best$Region)
+region <- if_else(is.na(region), "<total>", region)
 fcast <- fc %>%
   filter(.model=='ets') %>%
   right_join(best) %>%
-  as_fable(resp=Trips, dist=.distribution)
+  as_fable(resp=rlang::exprs(Trips), dist=.distribution)
+autoplot(fcast, colour='red') + 
+  autolayer(data) +
+  ggtitle(paste0("Domestic trips: ", best$State, "/", region))
+```
+
+## Worst forecast (RelCRPS)
+
+```{r worst, dependson='crps'}
+worst <- crps %>%
+  filter(RelCRPS==max(RelCRPS)) %>%
+  select(Region, State)
+region <- as.character(worst$Region)
+region <- if_else(is.na(region), "<total>", region)
+data <- aus_holidays %>%
+  aggregate_key(State/Region, Trips=sum(Trips)) %>%
+  right_join(worst)
+fcast <- fc %>%
+  filter(.model=='ets') %>%
+  right_join(worst) %>%
+  as_fable(resp=rlang::exprs(Trips), dist=.distribution)
+autoplot(fcast, colour='red') + 
+  autolayer(data) +
+  ggtitle(paste0("Domestic trips: ", worst$State, "/", region))
 ```
 
 
