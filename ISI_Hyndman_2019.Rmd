@@ -378,8 +378,8 @@ region <- if_else(is.na(region), "<total>", region)
 fcast <- fc %>%
   filter(.model=='ets') %>%
   right_join(best) %>%
-  as_fable(resp=rlang::exprs(Trips), dist=.distribution)
-autoplot(fcast, colour='red') + 
+  as_fable(resp=Trips, dist=.distribution)
+autoplot(fcast, colour='red') +
   autolayer(data) +
   ggtitle(paste0("Domestic trips: ", best$State, "/", region))
 ```
@@ -398,8 +398,8 @@ data <- aus_holidays %>%
 fcast <- fc %>%
   filter(.model=='ets') %>%
   right_join(worst) %>%
-  as_fable(resp=rlang::exprs(Trips), dist=.distribution)
-autoplot(fcast, colour='red') + 
+  as_fable(resp=Trips, dist=.distribution)
+autoplot(fcast, colour='red') +
   autolayer(data) +
   ggtitle(paste0("Domestic trips: ", worst$State, "/", region))
 ```
