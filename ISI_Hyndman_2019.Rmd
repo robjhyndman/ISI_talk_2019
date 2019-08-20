@@ -136,11 +136,12 @@ These show the marginal distributions of the 9-dimensional distribution. In prac
  * Energy companies forecasting electricity demand to prevent blackouts.
 
 ## \fontsize{16}{16}\sf\bfseries Challenges in multivariate probabilistic forecasting
-\fontsize{12}{14}\sf
 
- 1. How to produce high-dim probabilistic forecasts?
- 2. How to use and interpret high-dim probabilistic forecasts?
- 3. How to measure accuracy of high-dim probabilistic forecasts?
+\fontsize{14}{15.5}\sf
+
+ 1. How to produce high-dimensional probabilistic forecasts?
+ 2. How to use and interpret high-dimensional probabilistic forecasts?
+ 3. How to measure accuracy of high-dimensional probabilistic forecasts?
 
 \pause
 
@@ -157,18 +158,18 @@ These show the marginal distributions of the 9-dimensional distribution. In prac
 
 ```{r score1, fig.height=3.9}
 y <- 4.8
-s <- function(y,i,pi)
-{
+s <- function(y,i,pi) {
   (1-i/100)*(pi-y) * (y < pi) + i/100*(y-pi) * (y >= pi)
 }
-x <- seq(-7,7,l=10001)
-dx <- dnorm(x,3,1)
-par(mar=c(3,2,1,5))
-plot(x,3*dx, xlim=c(0,6), ylim=c(0,2), type="n",
-     yaxt="n", yaxs='i', ylab="", xlab="",
-     main="Forecast distribution")
-polygon(c(x,x[1]),c(dx,dx[1])*3,border=FALSE,col='gray')
-axis(1,at=y,labels="y",line=1,tck=0.06, lwd=2, col='blue')
+y <- exp(seq(-7,7,l=10001))
+dy <- dlnorm(y,3,1)
+dy <- dy/max(dy)
+
+par(mar=c(4,1,1,1))
+plot(y,dy,xlim=c(0,100),ylim=c(0,1.05),type="n",yaxt="n",ylab="",
+     xlab="y",
+     main="Forecast distribution",yaxs="i")
+polygon(c(y,y[1]),c(dy,dy[1]),border=FALSE,col='gray')
 ```
 
 ## Probability scoring
@@ -178,21 +179,18 @@ axis(1,at=y,labels="y",line=1,tck=0.06, lwd=2, col='blue')
  * $q_p = F^{-1}(p) =$ quantile with probability $p$.
 
 ```{r score2, fig.height=3.9}
-p <- 0.2
-poe <- qnorm(p,3,1)
-x2 <- x[x>=poe]
-dx2 <- dx[x>=poe]
-par(mar=c(3,2,1,5))
-plot(x,3*dx, xlim=c(0,6), ylim=c(0,2), type="n",
-     yaxt="n", yaxs='i', ylab="", xlab="",
-     main="Forecast distribution")
-polygon(c(x,x[1]),c(dx,dx[1])*3,border=FALSE,col='gray')
-polygon(c(x2[1],x2,x2[1]),3*c(0,dx2,0),col='red',border=TRUE)
-lines(x,s(x,p*100, poe),lwd=2,col='DarkGreen')
-text(1.6,.1,"20%",col='white')
-text(3.6,.2,"80%",col='black')
-axis(1,at=poe,labels=expression(q[0.2]),line=1,tck=0.2)
-axis(1,at=y,labels="y",line=1,tck=0.06, lwd=2, col='blue')
+# 80%ile
+poe <- qlnorm(0.8,3,1)
+y2 <- y[y>=poe]
+dy2 <- dy[y>=poe]
+
+par(mar=c(4,1,1,1))
+plot(y,dy,xlim=c(0,100),ylim=c(0,1.05),type="n",yaxt="n",ylab="",xlab="y",
+     main="Forecast distribution",yaxs="i")
+polygon(c(y,y[1]),c(dy,dy[1]),border=FALSE,col='gray')
+polygon(c(y2[1],y2,y2[1]),c(0,dy2,0),col=rgb(0,99,167,maxColorValue=255),border=FALSE)
+text(poe*1.4,.05,"20%",col='white')
+axis(1, at=poe, label=expression(q[t](0.8)),line=1,tck=0.1)
 ```
 
 ## Probability scoring
@@ -202,26 +200,17 @@ axis(1,at=y,labels="y",line=1,tck=0.06, lwd=2, col='blue')
  * $q_p = F^{-1}(p) =$ quantile with probability $p$.
 
 ```{r score2a, fig.height=3.9}
-p <- 0.2
-poe <- qnorm(p,3,1)
-x2 <- x[x>=poe]
-dx2 <- dx[x>=poe]
-par(mar=c(3,2,1,5))
-plot(x,3*dx, xlim=c(0,6), ylim=c(0,2), type="n",
-     yaxt="n", yaxs='i', ylab="", xlab="",
-     main="Forecast distribution")
-polygon(c(x,x[1]),c(dx,dx[1])*3,border=FALSE,col='gray')
-polygon(c(x2[1],x2,x2[1]),3*c(0,dx2,0),col='red',border=TRUE)
-lines(x,s(x,p*100, poe),lwd=2,col='DarkGreen')
-text(1.6,.1,"20%",col='white')
-text(3.6,.2,"80%",col='black')
-axis(1,at=poe,labels=expression(q[0.2]),line=1,tck=0.2)
-axis(1,at=y,labels="y",line=1,tck=0.2, col='blue')
-lines(rep(y,2), c(0,s(y,100*p,poe)), col='blue')
-lines(c(y,10), rep(s(y,100*p,poe),2), col='blue')
-axis(4,at=s(y,100*p,poe), labels=expression(s[0.2](q[0.2],y)),las=1)
+par(mar=c(4,1,1,1))
+plot(y,dy,xlim=c(0,100),ylim=c(0,1.05),type="n",yaxt="n",ylab="",xlab="y",
+     main="Forecast distribution",yaxs="i")
+polygon(c(y,y[1]),c(dy,dy[1]),border=FALSE,col='gray')
+polygon(c(y2[1],y2,y2[1]),c(0,dy2,0),col=rgb(0,99,167,maxColorValue=255),border=FALSE)
+text(poe*1.4,.05,"20%",col='white')
+lines(y, .02*s(y, 80, poe),lwd=2,col=rgb(204, 89, 0, maxColorValue=255))
+text(75,.9,"Score = ",col=rgb(204, 89, 0, maxColorValue=255),adj=1)
+text(83,.9,expression(s[p](q[p],y)),col=rgb(204, 89, 0, maxColorValue=255),adj=1)
+axis(1, at=poe, label=expression(q[t](0.8)),line=1,tck=0.1)
 ```
-
 
 ## Probability scoring
 
@@ -230,25 +219,37 @@ axis(4,at=s(y,100*p,poe), labels=expression(s[0.2](q[0.2],y)),las=1)
  * $q_p = F^{-1}(p) =$ quantile with probability $p$.
 
 ```{r score3, fig.height=3.9}
-poe <- qnorm(0.4,3,1)
-x2 <- x[x>=poe]
-dx2 <- dx[x>=poe]
-par(mar=c(3,2,1,5))
-plot(x,3*dx, xlim=c(0,6), ylim=c(0,2), type="n",
-     yaxt="n", yaxs='i', ylab="", xlab="",
-     main="Forecast distribution")
-polygon(c(x,x[1]),c(dx,dx[1])*3,border=FALSE,col='gray')
-polygon(c(x2[1],x2,x2[1]),3*c(0,dx2,0),col='red',border=TRUE)
-lines(x,s(x,40, poe),lwd=2,col='DarkGreen')
-text(1.8,.1,"40%",col='white')
-text(3.6,.2,"60%",col='black')
-axis(1,at=poe,labels=expression(q[0.4]),line=1,tck=0.2)
-axis(1,at=y,labels="y",line=1,tck=0.2, col='blue')
-lines(rep(y,2), c(0,s(y,40,poe)), col='blue')
-lines(c(y,10), rep(s(y,40,poe),2), col='blue')
-axis(4,at=s(y,40,poe), labels=expression(s[0.4](q[0.4],y)),las=1)
+# 50%ile
+poe <- qlnorm(0.5,3,1)
+y2 <- y[y>=poe]
+dy2 <- dy[y>=poe]
+par(mar=c(4,1,1,1))
+plot(y,dy,xlim=c(0,100),ylim=c(0,1.05),type="n",yaxt="n",ylab="",xlab="y",
+     main="Forecast distribution",yaxs="i")
+polygon(c(y,y[1]),c(dy,dy[1]),border=FALSE,col='gray')
+polygon(c(y2[1],y2,y2[1]),c(0,dy2,0),col=rgb(0,99,167,maxColorValue=255),border=FALSE)
+text(poe*1.2,.1,"50%",col='white')
+axis(1, at=poe, label=expression(q[t](0.5)),line=1.5,tck=0.1)
 ```
 
+## Probability scoring
+
+ * $y=$ actual value
+ * $F=$ forecast distribution
+ * $q_p = F^{-1}(p) =$ quantile with probability $p$.
+
+```{r score3a, fig.height=3.9}
+par(mar=c(4,1,1,1))
+plot(y,dy,xlim=c(0,100),ylim=c(0,1.05),type="n",yaxt="n",ylab="",xlab="y",
+     main="Demand distribution",yaxs="i")
+polygon(c(y,y[1]),c(dy,dy[1]),border=FALSE,col='gray')
+polygon(c(y2[1],y2,y2[1]),c(0,dy2,0),col=rgb(0,99,167,maxColorValue=255),border=FALSE)
+text(poe*1.2,.1,"50%",col='white')
+lines(y, .02*s(y, 50, poe),lwd=2,col=rgb(204, 89, 0, maxColorValue=255))
+text(75,.9,"Score = ",col=rgb(204, 89, 0, maxColorValue=255),adj=1)
+text(83,.9,expression(s[p](q[p],y)),col=rgb(204, 89, 0, maxColorValue=255),adj=1)
+axis(1, at=poe, label=expression(q[t](0.5)),line=1.5,tck=0.1)
+```
 
 ## Probability scoring
 
@@ -257,26 +258,18 @@ axis(4,at=s(y,40,poe), labels=expression(s[0.4](q[0.4],y)),las=1)
  * $q_p = F^{-1}(p) =$ quantile with probability $p$.
 
 ```{r score4, fig.height=3.9}
-p <- 0.9
-poe <- qnorm(p,3,1)
-x2 <- x[x>=poe]
-dx2 <- dx[x>=poe]
-par(mar=c(3,2,1,5))
-plot(x,3*dx, xlim=c(0,6), ylim=c(0,2), type="n",
-     yaxt="n", yaxs='i', ylab="", xlab="",
-     main="Forecast distribution")
-polygon(c(x,x[1]),c(dx,dx[1])*3,border=FALSE,col='gray')
-polygon(c(x2[1],x2,x2[1]),3*c(0,dx2,0),col='red',border=TRUE)
-lines(x,s(x,p*100, poe),lwd=2,col='DarkGreen')
-text(4.6,.1,"10%",col='white')
-text(3.6,.2,"90%",col='black')
-axis(1,at=poe,labels=expression(q[0.9]),line=1,tck=0.2)
-axis(1,at=y,labels="y",line=1,tck=0.2, col='blue')
-lines(rep(y,2), c(0,s(y,p*100,poe)), col='blue')
-lines(c(y,10), rep(s(y,p*100,poe),2), col='blue')
-axis(4,at=s(y,p*100,poe), labels=expression(s[0.9](q[0.9],y)),las=1)
+# 10%ile
+poe <- qlnorm(0.1,3,1)
+y2 <- y[y>=poe]
+dy2 <- dy[y>=poe]
+par(mar=c(4,1,1,1))
+plot(y,dy,xlim=c(0,100),ylim=c(0,1.05),type="n",yaxt="n",ylab="",xlab="y",
+     main="Forecast distribution",yaxs="i")
+polygon(c(y,y[1]),c(dy,dy[1]),border=FALSE,col='gray')
+polygon(c(y2[1],y2,y2[1]),c(0,dy2,0),col=rgb(0,99,167,maxColorValue=255),border=FALSE)
+text(poe*1.5,.1,"90%",col='white')
+axis(1, at=poe, label=expression(q[t](0.1)),line=1.5,tck=0.1)
 ```
-
 
 ## Probability scoring
 
@@ -284,6 +277,24 @@ axis(4,at=s(y,p*100,poe), labels=expression(s[0.9](q[0.9],y)),las=1)
  * $F=$ forecast distribution
  * $q_p = F^{-1}(p) =$ quantile with probability $p$.
 
+```{r score4a, fig.height=3.9}
+par(mar=c(4,1,1,1))
+plot(y,dy,xlim=c(0,100),ylim=c(0,1.05),type="n",yaxt="n",ylab="",xlab="y",
+     main="Demand distribution",yaxs="i")
+polygon(c(y,y[1]),c(dy,dy[1]),border=FALSE,col='gray')
+polygon(c(y2[1],y2,y2[1]),c(0,dy2,0),col=rgb(0,99,167,maxColorValue=255),border=FALSE)
+text(poe*1.5,.1,"90%",col='white')
+lines(y, .02*s(y, 50, poe),lwd=2,col=rgb(204, 89, 0, maxColorValue=255))
+text(75,.9,"Score = ",col=rgb(204, 89, 0, maxColorValue=255),adj=1)
+text(83,.9,expression(s[p](q[p],y)),col=rgb(204, 89, 0, maxColorValue=255),adj=1)
+axis(1, at=poe, label=expression(q[t](0.1)),line=1.5,tck=0.1)
+```
+
+## Probability scoring
+
+ * $y=$ actual value
+ * $F=$ forecast distribution
+ * $q_p = F^{-1}(p) =$ quantile with probability $p$.
 
 \begin{block}{Quantile Score (pinball loss)}\vspace*{-0.1cm}
 $$
@@ -302,7 +313,6 @@ $$
 $$
 \end{block}
 
-
 ## Probability scoring
 
  * $y=$ actual value
@@ -319,7 +329,6 @@ $$
  * CRPS in same units as observations
  * Expected CRPS minimized when observation $y$ from same distribution as $F$.
  * Maximizes sharpness subject to calibration.
-
 
 ## Tidyverts R packages
 
@@ -362,7 +371,7 @@ aus_holidays_agg <- aus_holidays %>%
   aggregate_key(State/Region, Trips=sum(Trips))
 aus_holidays_agg
 ```
-## High-dimensional time series data
+## Create training/test sets
 \fontsize{9.5}{11}\sf
 
 ```{r tourism, echo=TRUE}
@@ -406,13 +415,13 @@ fc <- aus_holidays_agg %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(ets = min_trace(ets)) %>%
   forecast(h = "2 years")
-ac1 <- fc %>% 
-  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) 
+ac1 <- fc %>%
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS))
 ac2 <- ac1 %>%
   spread(key=.model, value=CRPS)
-ac3 <- ac2 %>% 
-  mutate(RelCRPS = ets/mean) 
-crps <- ac3 %>% 
+ac3 <- ac2 %>%
+  mutate(RelCRPS = ets/mean)
+crps <- ac3 %>%
   arrange(RelCRPS)
 ```
 
@@ -422,9 +431,8 @@ crps <- ac3 %>%
 ```{r accuracy, eval = FALSE, echo=TRUE}
 aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
-  reconcile(coherent = min_trace(ets)) %>%
+  reconcile(ets = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
   accuracy(aus_holidays_agg, measures = list(CRPS = CRPS))
 ```
@@ -432,35 +440,33 @@ aus_holidays_agg %>%
 ac1
 ```
 
-## Probability scoring
+## Reorganize results
 \fontsize{9.5}{11}\sf
 
 ```{r crps2, eval=FALSE, echo=TRUE}
 aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
-  reconcile(coherent = min_trace(ets)) %>%
+  reconcile(ets = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
-  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>% 
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>%
   spread(key=.model, value=CRPS)
 ```
 ```{r crps2a, eval=TRUE, echo=FALSE, dependson='crps'}
 ac2
 ```
 
-## Probability scoring
+## Scale CRPS values
 \fontsize{9.5}{11}\sf
 
 ```{r crps3, eval=FALSE, echo=TRUE}
 aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
-  reconcile(coherent = min_trace(ets)) %>%
+  reconcile(ets = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
-  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>% 
-  spread(key=.model, value=CRPS) %>% 
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>%
+  spread(key=.model, value=CRPS) %>%
   mutate(RelCRPS = ets/mean)
 ```
 
@@ -468,18 +474,17 @@ aus_holidays_agg %>%
 ac3
 ```
 
-## Probability scoring
+## Sort by scaled CRPS
 \fontsize{9.5}{11}\sf
 
 ```{r crps4, eval=FALSE, echo=TRUE}
 aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
-  reconcile(coherent = min_trace(ets)) %>%
+  reconcile(ets = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
-  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>% 
-  spread(key=.model, value=CRPS) %>% 
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>%
+  spread(key=.model, value=CRPS) %>%
   mutate(RelCRPS = ets/mean) %>%
   arrange(RelCRPS)
 ```
@@ -493,24 +498,23 @@ crps
 ```{r best, dependson='crps'}
 best <- crps %>%
   filter(RelCRPS==min(RelCRPS))
-fc %>% 
+fc %>%
   filter(.model=='ets') %>%
-  semi_join(best, by = c("State", "Region")) %>% 
-  as_fable(resp=Trips, dist=.distribution) %>% 
+  semi_join(best, by = c("State", "Region")) %>%
+  as_fable(resp=Trips, dist=.distribution) %>%
   autoplot(aus_holidays_agg, colour='red') +
   ggtitle(paste0("Domestic trips: ", best$State, "/", format(best$Region)))
 ```
 
 ## Worst forecast (RelCRPS)
 
-
 ```{r worst, dependson='crps'}
 worst <- crps %>%
   filter(RelCRPS==max(RelCRPS))
-fc %>% 
+fc %>%
   filter(.model=='ets') %>%
-  semi_join(worst, by = c("State", "Region")) %>% 
-  as_fable(resp=Trips, dist=.distribution) %>% 
+  semi_join(worst, by = c("State", "Region")) %>%
+  as_fable(resp=Trips, dist=.distribution) %>%
   autoplot(aus_holidays_agg, colour='red') +
   ggtitle(paste0("Domestic trips: ", worst$State, "/", format(worst$Region)))
 ```
@@ -518,13 +522,12 @@ fc %>%
 ## \fontsize{16}{16}\sf\bfseries Challenges in multivariate probabilistic forecasting
 \fontsize{12}{14}\sf
 
- 1. The fable package produces high-dim probabilistic forecasts?
+ 1. The fable package produces high-dimensional probabilistic forecasts.
  2. We can focus on marginal distributions for interpretation, while needing the full distribution for calculation.
  3. Forecast reconciliation provides a way to efficiently compute marginal distributions.
  4. Probability scoring allows us to measure distributional forecast accuracy.
 
 ## Acknowledgements
-
 
 \begin{block}{}
 \fontsize{11}{11}\sf
