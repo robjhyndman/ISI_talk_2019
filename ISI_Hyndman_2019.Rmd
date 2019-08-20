@@ -354,30 +354,28 @@ aus_holidays
 \begin{block}{}\fontsize{10}{10}\sf Domestic overnight holiday trips in thousands by state/region.\phantom{dg}\end{block}
 \end{textblock}}
 
-## High-dimensional time series data
-\fontsize{9.5}{11}\sf
-
-```{r tourism, echo=TRUE}
-aus_holidays %>%
-  filter(Quarter <= yearquarter("2015 Q4")) # 2 year test set
-```
-
 ## Compute all aggregates
 \fontsize{9.5}{11}\sf
 
 ```{r aggregates, echo=TRUE}
-aus_holidays %>%
-  filter(Quarter <= yearquarter("2015 Q4")) %>%
+aus_holidays_agg <- aus_holidays %>%
   aggregate_key(State/Region, Trips=sum(Trips))
+aus_holidays_agg
+```
+## High-dimensional time series data
+\fontsize{9.5}{11}\sf
+
+```{r tourism, echo=TRUE}
+aus_holidays_agg %>%
+  filter(Quarter <= yearquarter("2015 Q4")) # 2 year test set
 ```
 
 ## Fit univariate models
 \fontsize{9.5}{11}\sf
 
 ```{r models, echo=TRUE}
-aus_holidays %>%
+aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips))
 ```
 
@@ -385,9 +383,8 @@ aus_holidays %>%
 \fontsize{9.5}{11}\sf
 
 ```{r coherent, echo=TRUE}
-aus_holidays %>%
+aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(ets = min_trace(ets))
 ```
@@ -396,68 +393,42 @@ aus_holidays %>%
 \fontsize{9.5}{11}\sf
 
 ```{r forecasts, echo=TRUE}
-aus_holidays %>%
+aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(ets = min_trace(ets)) %>%
   forecast(h = "2 years")
 ```
 
 ```{r crps, results='hide'}
-get_sd <- function(x) {
-  purrr::map_dbl(x, function(x){x$sd})
-}
-Gaussian_crps <- function(y, mean, sd) {
-  z <- (y-mean)/sd
-  sd*(z*(2*pnorm(z)-1)+2*dnorm(z)-1/sqrt(pi))
-}
-fc <- aus_holidays %>%
+fc <- aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(ets = min_trace(ets)) %>%
   forecast(h = "2 years")
-y <- filter(aus_holidays, Quarter >= yearquarter("2016 Q1")) %>%
-  aggregate_key(State/Region, Trips=sum(Trips))
-ac <- fc %>%
-  mutate(sd = get_sd(.distribution)) %>%
-  as_tibble() %>%
-  rename(Mean = Trips) %>%
-  left_join(y) %>%
-  mutate(
-    z = (Trips - Mean)/sd,
-    CRPS = Gaussian_crps(Trips, Mean, sd)
-  ) %>%
-  group_by(State, Region, .model) %>%
-  summarize(CRPS = mean(CRPS)) %>%
-  select(.model, Region, State, everything())
-ac1 <- accuracy(fc, y) %>%
-  left_join(ac) %>%
-  select(.model, Region, State, CRPS) #%>%
-  #filter(!is_aggregated(State) & !is_aggregated(Region))
+ac1 <- fc %>% 
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) 
 ac2 <- ac1 %>%
   spread(key=.model, value=CRPS)
-ac3 <- ac2 %>%
-  mutate(RelCRPS = ets/mean)
-ac4 <- ac3 %>%
+ac3 <- ac2 %>% 
+  mutate(RelCRPS = ets/mean) 
+crps <- ac3 %>% 
   arrange(RelCRPS)
 ```
 
 ## Compare against test set
 \fontsize{9.5}{11}\sf
 
-```{r accuracy, eval=FALSE, echo=TRUE}
-aus_holidays %>%
+```{r accuracy, eval = FALSE, echo=TRUE}
+aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
   aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(coherent = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
-  accuracy(aus_holidays)
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS))
 ```
-
-```{r accuracy2, eval=TRUE, echo=FALSE, dependson='crps'}
+```{r crps1a, eval=TRUE, echo=FALSE, dependson='crps'}
 ac1
 ```
 
@@ -465,16 +436,15 @@ ac1
 \fontsize{9.5}{11}\sf
 
 ```{r crps2, eval=FALSE, echo=TRUE}
-aus_holidays %>%
+aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
   aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(coherent = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
-  accuracy(aus_holidays) %>%
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>% 
   spread(key=.model, value=CRPS)
 ```
-
 ```{r crps2a, eval=TRUE, echo=FALSE, dependson='crps'}
 ac2
 ```
@@ -483,15 +453,15 @@ ac2
 \fontsize{9.5}{11}\sf
 
 ```{r crps3, eval=FALSE, echo=TRUE}
-aus_holidays %>%
+aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
   aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(coherent = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
-  accuracy(aus_holidays) %>%
-  spread(key=.model, value=CRPS) %>%
-  mutate(RelCRPS = coherent/mean)
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>% 
+  spread(key=.model, value=CRPS) %>% 
+  mutate(RelCRPS = ets/mean)
 ```
 
 ```{r crps3a, eval=TRUE, echo=FALSE, dependson='crps'}
@@ -502,63 +472,48 @@ ac3
 \fontsize{9.5}{11}\sf
 
 ```{r crps4, eval=FALSE, echo=TRUE}
-aus_holidays %>%
+aus_holidays_agg %>%
   filter(Quarter <= yearquarter("2015 Q4")) %>%
   aggregate_key(State/Region, Trips=sum(Trips)) %>%
   model(mean = MEAN(Trips), ets = ETS(Trips)) %>%
   reconcile(coherent = min_trace(ets)) %>%
   forecast(h = "2 years") %>%
-  accuracy(aus_holidays) %>%
-  spread(key=.model, value=CRPS) %>%
-  mutate(RelCRPS = coherent/mean) %>%
+  accuracy(aus_holidays_agg, measures = list(CRPS = CRPS)) %>% 
+  spread(key=.model, value=CRPS) %>% 
+  mutate(RelCRPS = ets/mean) %>%
   arrange(RelCRPS)
 ```
 
 ```{r crps4a, eval=TRUE, echo=FALSE, dependson='crps'}
-ac4
-crps <- ac4
+crps
 ```
 
 ## Best forecast (RelCRPS)
 
 ```{r best, dependson='crps'}
 best <- crps %>%
-  filter(RelCRPS==min(RelCRPS)) %>%
-  select(Region, State)
-data <- aus_holidays %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
-  right_join(best)
-region <- as.character(best$Region)
-region <- if_else(is.na(region), "<total>", region)
-fcast <- fc %>%
+  filter(RelCRPS==min(RelCRPS))
+fc %>% 
   filter(.model=='ets') %>%
-  right_join(best) %>%
-  as_fable(resp=Trips, dist=.distribution)
-autoplot(fcast, colour='red') +
-  autolayer(data) +
-  ggtitle(paste0("Domestic trips: ", best$State, "/", region))
+  semi_join(best, by = c("State", "Region")) %>% 
+  as_fable(resp=Trips, dist=.distribution) %>% 
+  autoplot(aus_holidays_agg, colour='red') +
+  ggtitle(paste0("Domestic trips: ", best$State, "/", format(best$Region)))
 ```
 
 ## Worst forecast (RelCRPS)
 
+
 ```{r worst, dependson='crps'}
 worst <- crps %>%
-  filter(RelCRPS==max(RelCRPS)) %>%
-  select(Region, State)
-region <- as.character(worst$Region)
-region <- if_else(is.na(region), "<total>", region)
-data <- aus_holidays %>%
-  aggregate_key(State/Region, Trips=sum(Trips)) %>%
-  right_join(worst)
-fcast <- fc %>%
+  filter(RelCRPS==max(RelCRPS))
+fc %>% 
   filter(.model=='ets') %>%
-  right_join(worst) %>%
-  as_fable(resp=Trips, dist=.distribution)
-autoplot(fcast, colour='red') +
-  autolayer(data) +
-  ggtitle(paste0("Domestic trips: ", worst$State, "/", region))
+  semi_join(worst, by = c("State", "Region")) %>% 
+  as_fable(resp=Trips, dist=.distribution) %>% 
+  autoplot(aus_holidays_agg, colour='red') +
+  ggtitle(paste0("Domestic trips: ", worst$State, "/", format(worst$Region)))
 ```
-
 
 ## \fontsize{16}{16}\sf\bfseries Challenges in multivariate probabilistic forecasting
 \fontsize{12}{14}\sf
